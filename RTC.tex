@@ -46,6 +46,11 @@
 5.我们采用的方法是OpenCL，Opencl是。。。
 6.考虑能否将multi-mode rtc的研究成果集成到加速库中来。因为它是状态机，状态机在GPU上实现是非常高效的。
 
+在采用Opencl进行加速的过程中，有以下困难：
+1. 用于记录卷积结果的结构是动态变化的，因此需要有一种机制来支持动态的的线段插入。
+2. 应该尽可能的避免memory colceasing。最初的算法没有用到这一点。
+3. 由于在采用了private memory后每个work-item可以尽可能多的将结果存在本地的private  memory中，因而可以尽可能的提高访问速度。在算法的最后一步再形成计算结果。
+
 It has been reported that 70\% of the time is spent in the validation and verification phase of the design cycle [1] where verification by simulation is used.
 
 K.-D. Schubert, “Improvements in functional simulation addressing
@@ -68,14 +73,41 @@ New York, NY, USA: ACM, 2003, pp. 11–14.
 
 \section{基于OpenCL的并行算法}
 \subsection{开发算法中的并行性}
+该问题有以下特点：
+(1) 三角关系，我们举例说明$b_2+a_1<c_2+a_1<C_2+B_1$。这个关系可以帮助我们分散计算结果，并使得我们可以将计算数据分配到每个item的private memory中以提高计算速度
+（2）对角关系，我们以$N\times N$的矩阵结构为例，在该结构中，所有处于对角上的item负责计算某个区别内的局部计算结构，而且计算出的的局部结构首尾相接，而且互相不重叠。
+（3）线段的单调性关系：如果$a<b$，那么必有$f(a)<f(b)$，同样另一个操作数$g$也满足这个关系。
+
+计算结果存储在一些特殊的节点的，这是一类特殊的动态规划问题，因为一般的动态规划算法的结果路径是任意的。与某一类动态规划的另一个区别是，要用到整个矩阵，而不是上三角或者下三角。
+
+\begin{figure}
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[scale=0.5]{figures/square.pdf}\\
+  \caption{square}\label{square}
+\end{figure}
+
+\begin{figure}
+  \centering
+  % Requires \usepackage{graphicx}
+  \includegraphics[scale=0.3]{figures/Matrix.pdf}\\
+  \caption{matrix}\label{matrix}
+\end{figure}
+
 \subsection{实现基于OpenCl的并行算法}
 1.OpenCL的简介
 2.基于OpenCL实现的核函数
+
+通过对问题的分析和研究，我们发现，该问题可以对应为对下凸包的计算。即点集中最左边的顶和最右边的点的连线以下的点集。在本应用场景中，对最左边的顶和最右边的点的计算非常容易，因为它就是对角线两个顶点上的值。
+
+该算法在最快的情况下，只需要1次迭代就可以找到凸包（对应于阶梯函数的情况）。
 
 \section{实验验证}\label{experiments}
 1.实验平台
 2.实验数据
 3.实验结果
+
+算法计算结果的加速比和正确性通过与已有的工具箱的比较得到。
 
 \section{总结}
 网络演算面向实用的重要一步就是数学模型的快速计算。
